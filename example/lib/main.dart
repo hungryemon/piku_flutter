@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:piku_flutter/piku_sdk.dart';
 
+import 'secrets.dart';
+
 void main() {
   runApp(const MyApp());
 }
@@ -44,8 +46,8 @@ class MyHomePageState extends State<MyHomePage> {
         ),
         floatingActionButton: FloatingActionButton(onPressed: () {
           PikuChatDialog.show(context,
-              baseUrl: "YOUR_URL",
-              inboxIdentifier: "YOUR_INBOX_IDENTIFIER",
+              baseUrl: YOUR_URL,
+              inboxIdentifier: YOUR_INBOX_IDENTIFIER,
               title: "Piku",
               enablePersistence: true,
               user: const PikuUser(
