@@ -2,8 +2,10 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:core';
 import 'package:flutter/material.dart';
+import 'package:piku_flutter/data/local/entity/piku_message.dart';
 
 import '../piku_callbacks.dart';
+import 'local/entity/piku_conversation.dart';
 import 'local/entity/piku_user.dart';
 import 'local/local_storage.dart';
 import 'remote/piku_client_exception.dart';
@@ -29,7 +31,7 @@ abstract class PikuRepository {
 
   PikuRepository(this.clientService, this.localStorage, this.callbacks);
 
-  Future<void> initialize(PikuUser? user);
+  Future<void> initialize(PikuUser? user, int conversationId);
 
   void getPersistedMessages();
 
@@ -85,7 +87,7 @@ class PikuRepositoryImpl extends PikuRepository {
 
   /// Initializes piku client repository
   @override
-  Future<void> initialize(PikuUser? user) async {
+  Future<void> initialize(PikuUser? user, int conversationId) async {
     try {
       if (user != null) {
         await localStorage.userDao.saveUser(user);
@@ -97,12 +99,14 @@ class PikuRepositoryImpl extends PikuRepository {
 
       //refresh conversation
       final conversations = await clientService.getConversations();
-      final persistedConversation =
-          localStorage.conversationDao.getConversation()!;
-      final refreshedConversation = conversations.firstWhere(
-          (element) => element.id == persistedConversation.id,
+      final PikuConversation? persistedConversation =
+          localStorage.conversationDao.getConversation();
+      final PikuConversation refreshedConversation = conversations.firstWhere(
+          (element) => element.id == conversationId,
           orElse: () =>
-              persistedConversation //highly unlikely orElse will be called but still added it just in case
+              persistedConversation ??
+              conversations[
+                  0] //highly unlikely orElse will be called but still added it just in case
           );
       localStorage.conversationDao.saveConversation(refreshedConversation);
     } on PikuClientException catch (e) {
@@ -155,7 +159,7 @@ class PikuRepositoryImpl extends PikuRepository {
       } else if (pikuEvent.message?.event ==
           PikuEventMessageType.message_created) {
         print("here comes message: $event");
-        final message = pikuEvent.message!.data!.getMessage();
+        final PikuMessage message = pikuEvent.message!.data!.getMessage();
         localStorage.messagesDao.saveMessage(message);
         if (message.isMine) {
           callbacks.onMessageDelivered
@@ -167,10 +171,14 @@ class PikuRepositoryImpl extends PikuRepository {
           PikuEventMessageType.message_updated) {
         print("here comes the updated message: $event");
 
-        final message = pikuEvent.message!.data!.getMessage();
+        final PikuMessage message = pikuEvent.message!.data!.getMessage();
         localStorage.messagesDao.saveMessage(message);
-
-        callbacks.onMessageUpdated?.call(message);
+        if (message.isMine) {
+          callbacks.onMessageDelivered
+              ?.call(message, pikuEvent.message?.data?.echoId ?? '');
+        } else {
+          callbacks.onMessageUpdated?.call(message);
+        }
       } else if (pikuEvent.message?.event ==
           PikuEventMessageType.conversation_typing_off) {
         callbacks.onConversationStoppedTyping?.call();
@@ -189,8 +197,7 @@ class PikuRepositoryImpl extends PikuRepository {
       } else if (pikuEvent.message?.event ==
           PikuEventMessageType.presence_update) {
         final presenceStatuses =
-            (pikuEvent.message!.data!.users as Map<dynamic, dynamic>)
-                .values;
+            (pikuEvent.message!.data!.users as Map<dynamic, dynamic>).values;
         final isOnline = presenceStatuses.contains("online");
         if (isOnline) {
           callbacks.onConversationIsOnline?.call();

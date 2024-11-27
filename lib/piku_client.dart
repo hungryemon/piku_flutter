@@ -35,7 +35,7 @@ class PikuClient {
 
   void _init() {
     try {
-      _repository.initialize(user);
+      _repository.initialize(user, _parameters.conversationId);
     } on PikuClientException catch (e) {
       callbacks?.onError?.call(e);
     }
@@ -86,6 +86,8 @@ class PikuClient {
   static Future<PikuClient> create(
       {required String baseUrl,
       required String inboxIdentifier,
+      required String contactIdentifier,
+      required int conversationId,
       PikuUser? user,
       bool enablePersistence = true,
       PikuCallbacks? callbacks}) async {
@@ -97,10 +99,14 @@ class PikuClient {
         clientInstanceKey: getClientInstanceKey(
             baseUrl: baseUrl,
             inboxIdentifier: inboxIdentifier,
-            userIdentifier: user?.identifier),
+            contactIdentifier: contactIdentifier,
+            conversationId: conversationId,
+            ),
         isPersistenceEnabled: enablePersistence,
         baseUrl: baseUrl,
         inboxIdentifier: inboxIdentifier,
+        contactIdentifier: contactIdentifier,
+        conversationId: conversationId,
         userIdentifier: user?.identifier);
 
     final client = PikuClient._(pikuParams, callbacks: callbacks, user: user);
@@ -121,8 +127,10 @@ class PikuClient {
   static String getClientInstanceKey(
       {required String baseUrl,
       required String inboxIdentifier,
-      String? userIdentifier}) {
-    return "$baseUrl$_keySeparator$userIdentifier$_keySeparator$inboxIdentifier";
+      required String contactIdentifier,
+      required int conversationId,
+      }) {
+    return "$baseUrl$_keySeparator$contactIdentifier$conversationId$_keySeparator$inboxIdentifier";
   }
 
   static Map<String, ProviderContainer> providerContainerMap = {};
@@ -132,11 +140,13 @@ class PikuClient {
   static Future<void> clearData(
       {required String baseUrl,
       required String inboxIdentifier,
-      String? userIdentifier}) async {
+      required String contactIdentifier,
+      required int conversationId,}) async {
     final clientInstanceKey = getClientInstanceKey(
         baseUrl: baseUrl,
         inboxIdentifier: inboxIdentifier,
-        userIdentifier: userIdentifier);
+        contactIdentifier: contactIdentifier,
+        conversationId: conversationId,);
     providerContainerMap.putIfAbsent(
         clientInstanceKey, () => ProviderContainer());
     final container = providerContainerMap[clientInstanceKey]!;
@@ -144,6 +154,8 @@ class PikuClient {
         isPersistenceEnabled: true,
         baseUrl: "",
         inboxIdentifier: "",
+        contactIdentifier: "",
+        conversationId: 0,
         clientInstanceKey: "");
 
     final localStorage = container.read(localStorageProvider(params));
@@ -162,6 +174,8 @@ class PikuClient {
         isPersistenceEnabled: true,
         baseUrl: "",
         inboxIdentifier: "",
+        contactIdentifier: "",
+        conversationId: 0,
         clientInstanceKey: "");
 
     final localStorage = container.read(localStorageProvider(params));

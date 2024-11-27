@@ -30,7 +30,7 @@ final pikuClientApiInterceptorProvider =
   final localStorage = ref.read(localStorageProvider(params));
   final authService = ref.read(pikuClientAuthServiceProvider(params));
   return PikuClientApiInterceptor(
-      params.inboxIdentifier, localStorage, authService);
+      params.inboxIdentifier,params.contactIdentifier, params.conversationId, localStorage, authService);
 });
 
 ///Provides an instance of Dio with interceptors set to authenticate all requests called with this dio instance

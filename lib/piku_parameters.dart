@@ -6,11 +6,15 @@ class PikuParameters extends Equatable {
   final String clientInstanceKey;
   final String inboxIdentifier;
   final String? userIdentifier;
+  final String contactIdentifier;
+  final int conversationId;
 
   const PikuParameters(
       {required this.isPersistenceEnabled,
       required this.baseUrl,
       required this.inboxIdentifier,
+      required this.contactIdentifier,
+      required this.conversationId,
       required this.clientInstanceKey,
       this.userIdentifier});
 
@@ -20,6 +24,8 @@ class PikuParameters extends Equatable {
         baseUrl,
         clientInstanceKey,
         inboxIdentifier,
+        contactIdentifier,
+        conversationId,
         userIdentifier
       ];
 }

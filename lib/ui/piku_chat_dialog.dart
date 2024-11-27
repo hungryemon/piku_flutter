@@ -15,6 +15,8 @@ class PikuChatDialog extends StatefulWidget {
     BuildContext context, {
     required String baseUrl,
     required String inboxIdentifier,
+    required String contactIdentifier,
+    required int conversationId,
     bool enablePersistence = true,
     required String title,
     PikuUser? user,
@@ -31,6 +33,8 @@ class PikuChatDialog extends StatefulWidget {
           return PikuChatDialog(
             baseUrl: baseUrl,
             inboxIdentifier: inboxIdentifier,
+            contactIdentifier: contactIdentifier,
+            conversationId: conversationId,
             title: title,
             user: user,
             enablePersistence: enablePersistence,
@@ -50,6 +54,9 @@ class PikuChatDialog extends StatefulWidget {
   ///Identifier for target piku inbox.
   ///
   final String inboxIdentifier;
+
+  final String contactIdentifier;
+  final int conversationId;
 
   /// Enables persistence of piku client instance's contact, conversation and messages to disk
   /// for convenience.
@@ -86,6 +93,8 @@ class PikuChatDialog extends StatefulWidget {
     super.key,
     required this.baseUrl,
     required this.inboxIdentifier,
+    required this.contactIdentifier,
+    required this.conversationId,
     this.enablePersistence = true,
     required this.title,
     this.user,
@@ -183,6 +192,8 @@ class PikuChatDialogState extends State<PikuChatDialog> {
               child: PikuChat(
                 baseUrl: widget.baseUrl,
                 inboxIdentifier: widget.inboxIdentifier,
+                contactIdentifier: widget.contactIdentifier,
+                conversationId: widget.conversationId,
                 user: widget.user,
                 enablePersistence: widget.enablePersistence,
                 timeFormat: widget.timeFormat,

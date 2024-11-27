@@ -17,9 +17,9 @@ import 'piku_client_api_interceptor.dart';
 abstract class PikuClientService {
   final String _baseUrl;
   WebSocketChannel? connection;
-  final Dio _dio;
+  final Dio dio;
 
-  PikuClientService(this._baseUrl, this._dio);
+  PikuClientService(this._baseUrl, this.dio);
 
   Future<PikuContact> updateContact(update);
 
@@ -47,7 +47,7 @@ class PikuClientServiceImpl extends PikuClientService {
   @override
   Future<PikuMessage> createMessage(PikuNewMessageRequest request) async {
     try {
-      final createResponse = await _dio.post(
+      final createResponse = await dio.post(
           "$_baseUrl/public/api/v1/inboxes/${PikuClientApiInterceptor.INTERCEPTOR_INBOX_IDENTIFIER_PLACEHOLDER}/contacts/${PikuClientApiInterceptor.INTERCEPTOR_CONTACT_IDENTIFIER_PLACEHOLDER}/conversations/${PikuClientApiInterceptor.INTERCEPTOR_CONVERSATION_IDENTIFIER_PLACEHOLDER}/messages",
           data: request.toJson());
       if ((createResponse.statusCode ?? 0).isBetween(199, 300)) {
@@ -67,7 +67,7 @@ class PikuClientServiceImpl extends PikuClientService {
   @override
   Future<List<PikuMessage>> getAllMessages() async {
     try {
-      final createResponse = await _dio.get(
+      final createResponse = await dio.get(
           "/public/api/v1/inboxes/${PikuClientApiInterceptor.INTERCEPTOR_INBOX_IDENTIFIER_PLACEHOLDER}/contacts/${PikuClientApiInterceptor.INTERCEPTOR_CONTACT_IDENTIFIER_PLACEHOLDER}/conversations/${PikuClientApiInterceptor.INTERCEPTOR_CONVERSATION_IDENTIFIER_PLACEHOLDER}/messages");
       if ((createResponse.statusCode ?? 0).isBetween(199, 300)) {
         return (createResponse.data as List<dynamic>)
@@ -88,7 +88,7 @@ class PikuClientServiceImpl extends PikuClientService {
   @override
   Future<PikuContact> getContact() async {
     try {
-      final createResponse = await _dio.get(
+      final createResponse = await dio.get(
           "/public/api/v1/inboxes/${PikuClientApiInterceptor.INTERCEPTOR_INBOX_IDENTIFIER_PLACEHOLDER}/contacts/${PikuClientApiInterceptor.INTERCEPTOR_CONTACT_IDENTIFIER_PLACEHOLDER}");
       if ((createResponse.statusCode ?? 0).isBetween(199, 300)) {
         return PikuContact.fromJson(createResponse.data);
@@ -107,7 +107,7 @@ class PikuClientServiceImpl extends PikuClientService {
   @override
   Future<List<PikuConversation>> getConversations() async {
     try {
-      final createResponse = await _dio.get(
+      final createResponse = await dio.get(
           "/public/api/v1/inboxes/${PikuClientApiInterceptor.INTERCEPTOR_INBOX_IDENTIFIER_PLACEHOLDER}/contacts/${PikuClientApiInterceptor.INTERCEPTOR_CONTACT_IDENTIFIER_PLACEHOLDER}/conversations");
       if ((createResponse.statusCode ?? 0).isBetween(199, 300)) {
         return (createResponse.data as List<dynamic>)
@@ -128,7 +128,7 @@ class PikuClientServiceImpl extends PikuClientService {
   @override
   Future<PikuContact> updateContact(update) async {
     try {
-      final updateResponse = await _dio.patch(
+      final updateResponse = await dio.patch(
           "/public/api/v1/inboxes/${PikuClientApiInterceptor.INTERCEPTOR_INBOX_IDENTIFIER_PLACEHOLDER}/contacts/${PikuClientApiInterceptor.INTERCEPTOR_CONTACT_IDENTIFIER_PLACEHOLDER}",
           data: update);
       if ((updateResponse.statusCode ?? 0).isBetween(199, 300)) {
@@ -148,7 +148,7 @@ class PikuClientServiceImpl extends PikuClientService {
   @override
   Future<PikuMessage> updateMessage(String messageIdentifier, update) async {
     try {
-      final updateResponse = await _dio.patch(
+      final updateResponse = await dio.patch(
           "/public/api/v1/inboxes/${PikuClientApiInterceptor.INTERCEPTOR_INBOX_IDENTIFIER_PLACEHOLDER}/contacts/${PikuClientApiInterceptor.INTERCEPTOR_CONTACT_IDENTIFIER_PLACEHOLDER}/conversations/${PikuClientApiInterceptor.INTERCEPTOR_CONVERSATION_IDENTIFIER_PLACEHOLDER}/messages/$messageIdentifier",
           data: update);
       if ((updateResponse.statusCode ?? 0).isBetween(199, 300)) {

@@ -24,6 +24,9 @@ class PikuChat extends StatefulWidget {
 
   final String inboxIdentifier;
 
+  final String contactIdentifier;
+  final int conversationId;
+
   /// Enables persistence of piku client instance's contact, conversation and messages to disk
   /// for convenience.
   ///
@@ -118,6 +121,8 @@ class PikuChat extends StatefulWidget {
       {super.key,
       required this.baseUrl,
       required this.inboxIdentifier,
+      required this.contactIdentifier,
+      required this.conversationId,
       this.enablePersistence = true,
       this.user,
       this.appBar,
@@ -233,6 +238,7 @@ class PikuChatState extends State<PikuChat> {
         widget.onMessageDelivered?.call(pikuMessage);
       },
       onMessageUpdated: (pikuMessage) {
+        print("PIKU MSG LENGTH: ${pikuMessage.toJson()}");
         _handleMessageUpdated(_pikuMessageToTextMessage(pikuMessage,
             echoId: pikuMessage.id.toString()));
         widget.onMessageUpdated?.call(pikuMessage);
@@ -270,6 +276,8 @@ class PikuChatState extends State<PikuChat> {
     PikuClient.create(
             baseUrl: widget.baseUrl,
             inboxIdentifier: widget.inboxIdentifier,
+            contactIdentifier: widget.contactIdentifier,
+            conversationId: widget.conversationId,
             user: widget.user,
             enablePersistence: widget.enablePersistence,
             callbacks: pikuCallbacks)
@@ -356,14 +364,17 @@ class PikuChatState extends State<PikuChat> {
     types.Message message,
   ) {
     final index = _messages.indexWhere((element) => element.id == message.id);
-
-    if (_messages[index].status == types.Status.seen) {
-      return;
+    if (index >= 0) {
+      if (_messages[index].status == types.Status.seen) {
+        return;
+      }
     }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       setState(() {
-        _messages[index] = message;
+        if (index >= 0) {
+          _messages[index] = message;
+        }
       });
     });
   }
@@ -372,7 +383,7 @@ class PikuChatState extends State<PikuChat> {
     types.Message message,
   ) {
     final index = _messages.indexWhere((element) => element.id == message.id);
-
+    print("MESSAGE UPDATED ${_messages.length}");
     WidgetsBinding.instance.addPostFrameCallback((_) {
       setState(() {
         if (index < _messages.length && index >= 0) {

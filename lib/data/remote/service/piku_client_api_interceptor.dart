@@ -2,7 +2,6 @@ import 'package:dio/dio.dart';
 import 'package:synchronized/synchronized.dart' as synchronized;
 
 import '../../local/entity/piku_contact.dart';
-import '../../local/entity/piku_conversation.dart';
 import '../../local/local_storage.dart';
 import 'piku_client_auth_service.dart';
 
@@ -15,48 +14,50 @@ class PikuClientApiInterceptor extends Interceptor {
       "{CONVERSATION_IDENTIFIER}";
 
   final String _inboxIdentifier;
+  final String _contactIdentifier;
+  final int _conversationId;
   final LocalStorage _localStorage;
   final PikuClientAuthService _authService;
   final requestLock = synchronized.Lock();
   final responseLock = synchronized.Lock();
 
   PikuClientApiInterceptor(
-      this._inboxIdentifier, this._localStorage, this._authService);
+      this._inboxIdentifier, this._contactIdentifier, this._conversationId, this._localStorage, this._authService);
 
   /// Creates a new contact and conversation when no persisted contact is found when an api call is made
   @override
   Future<void> onRequest(
       RequestOptions options, RequestInterceptorHandler handler) async {
     await requestLock.synchronized(() async {
-      RequestOptions newOptions = options;
+         RequestOptions newOptions = options;
       PikuContact? contact = _localStorage.contactDao.getContact();
-      PikuConversation? conversation =
-          _localStorage.conversationDao.getConversation();
+      // PikuConversation? conversation =
+      //     _localStorage.conversationDao.getConversation();
 
       if (contact == null) {
         // create new contact from user if no token found
-        contact = await _authService.createNewContact(
-            _inboxIdentifier, _localStorage.userDao.getUser());
-        conversation = await _authService.createNewConversation(
-            _inboxIdentifier, contact.contactIdentifier!);
-        await _localStorage.conversationDao.saveConversation(conversation);
+        contact = await _authService.getContact(inboxIdentifier: _inboxIdentifier, contactIdentifier: _contactIdentifier);
+        // conversation = await _authService.createNewConversation(
+        //     _inboxIdentifier, contact.contactIdentifier!);
+        // await _localStorage.conversationDao.saveConversation(conversation);
         await _localStorage.contactDao.saveContact(contact);
       }
 
-      if (conversation == null) {
-        conversation = await _authService.createNewConversation(
-            _inboxIdentifier, contact.contactIdentifier!);
-        await _localStorage.conversationDao.saveConversation(conversation);
-      }
+      // if (conversation == null) {
+      //   conversation = await _authService.createNewConversation(
+      //       _inboxIdentifier, contact.contactIdentifier!);
+      //   await _localStorage.conversationDao.saveConversation(conversation);
+      // }
 
+   
       newOptions.path = newOptions.path.replaceAll(
           INTERCEPTOR_INBOX_IDENTIFIER_PLACEHOLDER, _inboxIdentifier);
       newOptions.path = newOptions.path.replaceAll(
           INTERCEPTOR_CONTACT_IDENTIFIER_PLACEHOLDER,
-          contact.contactIdentifier!);
+          _contactIdentifier);
       newOptions.path = newOptions.path.replaceAll(
           INTERCEPTOR_CONVERSATION_IDENTIFIER_PLACEHOLDER,
-          "${conversation.id}");
+          "$_conversationId");
 
       handler.next(newOptions);
     });
@@ -73,24 +74,26 @@ class PikuClientApiInterceptor extends Interceptor {
           response.statusCode == 404) {
         await _localStorage.clear(clearPikuUserStorage: false);
 
+         
+
         // create new contact from user if unauthorized,forbidden or not found
         final contact = _localStorage.contactDao.getContact()!;
-        final conversation = await _authService.createNewConversation(
-            _inboxIdentifier, contact.contactIdentifier!);
+        // final conversation = await _authService.createNewConversation(
+        //     _inboxIdentifier, contact.contactIdentifier!);
         await _localStorage.contactDao.saveContact(contact);
-        await _localStorage.conversationDao.saveConversation(conversation);
+        // await _localStorage.conversationDao.saveConversation(conversation);
 
-        RequestOptions newOptions = response.requestOptions;
+    
+           RequestOptions newOptions = response.requestOptions;
 
         newOptions.path = newOptions.path.replaceAll(
             INTERCEPTOR_INBOX_IDENTIFIER_PLACEHOLDER, _inboxIdentifier);
         newOptions.path = newOptions.path.replaceAll(
             INTERCEPTOR_CONTACT_IDENTIFIER_PLACEHOLDER,
-            contact.contactIdentifier!);
+            _contactIdentifier);
         newOptions.path = newOptions.path.replaceAll(
             INTERCEPTOR_CONVERSATION_IDENTIFIER_PLACEHOLDER,
-            "${conversation.id}");
-
+            "$_conversationId");
         //use authservice's dio without the interceptor for subsequent call
         handler.next(await _authService.dio.fetch(newOptions));
       } else {
