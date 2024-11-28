@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:dio/dio.dart';
+import 'package:piku_flutter/helpers/utils.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../../local/entity/piku_contact.dart';
@@ -47,9 +48,27 @@ class PikuClientServiceImpl extends PikuClientService {
   @override
   Future<PikuMessage> createMessage(PikuNewMessageRequest request) async {
     try {
+      List<MultipartFile> multipartFileList = [];
+      if (request.attachments != null && request.attachments!.isNotEmpty) {
+        await Future.wait(request.attachments!.map((attachment) async {
+          // Convert each XFile to MultipartFile
+          multipartFileList.add(await MultipartFile.fromFile(attachment!.path,
+              contentType: dioMediaType(attachment.name).isEmpty ? null : DioMediaType.parse(dioMediaType(attachment.name)),
+              filename: attachment.name));
+        }).toList());
+      }
+
+      print("MULTIPART LIST : ${multipartFileList.toString()}");
       final createResponse = await dio.post(
           "$_baseUrl/public/api/v1/inboxes/${PikuClientApiInterceptor.INTERCEPTOR_INBOX_IDENTIFIER_PLACEHOLDER}/contacts/${PikuClientApiInterceptor.INTERCEPTOR_CONTACT_IDENTIFIER_PLACEHOLDER}/conversations/${PikuClientApiInterceptor.INTERCEPTOR_CONVERSATION_IDENTIFIER_PLACEHOLDER}/messages",
-          data: request.toJson());
+          options: Options(headers: {
+            "Content-Type": "multipart/form-data",
+          }),
+          data: processObject({
+            "content": request.content,
+            "echo_id": request.echoId,
+            "attachments[]": multipartFileList,
+          }, isFormData: true));
       if ((createResponse.statusCode ?? 0).isBetween(199, 300)) {
         return PikuMessage.fromJson(createResponse.data);
       } else {

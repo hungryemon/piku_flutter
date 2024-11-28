@@ -1,5 +1,7 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 import 'package:riverpod/riverpod.dart';
 
 import '../piku_parameters.dart';
@@ -30,7 +32,11 @@ final pikuClientApiInterceptorProvider =
   final localStorage = ref.read(localStorageProvider(params));
   final authService = ref.read(pikuClientAuthServiceProvider(params));
   return PikuClientApiInterceptor(
-      params.inboxIdentifier,params.contactIdentifier, params.conversationId, localStorage, authService);
+      params.inboxIdentifier,
+      params.contactIdentifier,
+      params.conversationId,
+      localStorage,
+      authService);
 });
 
 ///Provides an instance of Dio with interceptors set to authenticate all requests called with this dio instance
@@ -38,6 +44,9 @@ final authenticatedDioProvider =
     Provider.family.autoDispose<Dio, PikuParameters>((ref, params) {
   final authenticatedDio = Dio(BaseOptions(baseUrl: params.baseUrl));
   final interceptor = ref.read(pikuClientApiInterceptorProvider(params));
+  if (kDebugMode) {
+    authenticatedDio.interceptors.add(PrettyDioLogger());
+  }
   authenticatedDio.interceptors.add(interceptor);
   return authenticatedDio;
 });
@@ -46,6 +55,9 @@ final authenticatedDioProvider =
 final pikuClientAuthServiceProvider =
     Provider.family<PikuClientAuthService, PikuParameters>((ref, params) {
   final unAuthenticatedDio = ref.read(unauthenticatedDioProvider(params));
+  if (kDebugMode) {
+    unAuthenticatedDio.interceptors.add(PrettyDioLogger());
+  }
   return PikuClientAuthServiceImpl(dio: unAuthenticatedDio);
 });
 
@@ -53,6 +65,9 @@ final pikuClientAuthServiceProvider =
 final pikuClientServiceProvider =
     Provider.family<PikuClientService, PikuParameters>((ref, params) {
   final authenticatedDio = ref.read(authenticatedDioProvider(params));
+    if (kDebugMode) {
+    authenticatedDio.interceptors.add(PrettyDioLogger());
+  }
   return PikuClientServiceImpl(params.baseUrl, dio: authenticatedDio);
 });
 

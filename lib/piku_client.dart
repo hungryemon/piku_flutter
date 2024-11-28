@@ -1,3 +1,4 @@
+import 'package:image_picker/image_picker.dart';
 import 'package:riverpod/riverpod.dart';
 
 import 'data/remote/piku_client_exception.dart';
@@ -53,8 +54,8 @@ class PikuClient {
   /// [PikuMessage] will be returned with the [echoId] on [PikuCallbacks.onMessageSent]. If
   /// message fails to send [PikuCallbacks.onError] will be triggered [echoId] as data.
   Future<void> sendMessage(
-      {required String content, required String echoId, required bool sentFromCurrentDevice}) async {
-    final request = PikuNewMessageRequest(content: content, echoId: echoId);
+      {required String content, required List<XFile> attachments, required String echoId, required bool sentFromCurrentDevice}) async {
+    final request = PikuNewMessageRequest(content: content, attachments: attachments, echoId: echoId);
     await _repository.sendMessage(request, sentFromCurrentDevice,);
   }
 

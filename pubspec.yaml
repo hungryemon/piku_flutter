@@ -17,6 +17,7 @@ dependencies:
   web_socket_channel: ^3.0.1
   json_annotation: ^4.9.0
   dio: ^5.7.0
+  pretty_dio_logger: ^1.4.0
   equatable: ^2.0.5
   riverpod: ^2.6.1
   synchronized: ^3.3.0+3

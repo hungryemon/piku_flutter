@@ -55,7 +55,7 @@ class PikuChat extends StatefulWidget {
   final void Function(types.Message)? onMessageTap;
 
   /// See [Input.onSendPressed]
-  final void Function(types.PartialText)? onSendPressed;
+  final void Function(types.CustomMessage)? onSendPressed;
 
   /// See [Input.onTextChanged]
   final void Function(String)? onTextChanged;
@@ -166,7 +166,7 @@ class PikuChat extends StatefulWidget {
 class PikuChatState extends State<PikuChat> {
   ///
   List<types.Message> _messages = [];
-
+  List<XFile> results = [];
   late String status;
 
   final idGen = const Uuid();
@@ -390,23 +390,25 @@ class PikuChatState extends State<PikuChat> {
     setState(() {
       if ((message.metadata?['text'] != null &&
               message.metadata?['text'] != '') ||
-          message.metadata?['attachments'] != null &&
-              message.metadata?['attachments'] != []) {
+          (message.metadata?['attachments'] != null &&
+              message.metadata?['attachments'] != [])) {
         _messages.insert(0, message);
       }
     });
   }
 
-  _handleImageSelection(context, {String? echoId}) async {
-    final result = await ImagePicker().pickImage(
+  _handleImageSelection(
+    context,
+  ) async {
+    results = await ImagePicker().pickMultiImage(
       imageQuality: 70,
       maxWidth: 1440,
-      source: ImageSource.gallery,
+      limit: 3,
     );
 
-    if (result != null) {
+    if (results.isNotEmpty) {
       // Check if the file extension is SVG
-      if (result.name.toLowerCase().endsWith('.svg')) {
+      if (results.any((val) => val.name.toLowerCase().endsWith('.svg'))) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             backgroundColor: Colors.redAccent,
             duration: Duration(seconds: 2),
@@ -416,35 +418,25 @@ class PikuChatState extends State<PikuChat> {
             )));
         return;
       }
-
-      final bytes = await result.readAsBytes();
-      final image = await decodeImageFromList(bytes);
-
-      final imgMessage = types.ImageMessage(
-        author: _user,
-        createdAt: DateTime.now().millisecondsSinceEpoch,
-        height: image.height.toDouble(),
-        id: const Uuid().v4(),
-        name: result.name,
-        size: bytes.length,
-        uri: result.path,
-        width: image.width.toDouble(),
-      );
-
-      _addMessage(imgMessage);
     }
   }
 
   void _handleSendMessageFailed(String echoId) async {
     final index = _messages.indexWhere((element) => element.id == echoId);
     setState(() {
-      _messages[index] = _messages[index].copyWith(status: types.Status.error);
+      if (index >= 0) {
+        _messages[index] =
+            _messages[index].copyWith(status: types.Status.error);
+      }
     });
   }
 
-  void _handleResendMessage(types.TextMessage message) async {
+  void _handleResendMessage(types.CustomMessage message) async {
     pikuClient!.sendMessage(
-        content: message.text, echoId: message.id, sentFromCurrentDevice: true);
+        content: message.metadata?['text'] ?? '',
+        attachments: results,
+        echoId: message.id,
+        sentFromCurrentDevice: true);
     final index = _messages.indexWhere((element) => element.id == message.id);
     setState(() {
       _messages[index] = message.copyWith(status: types.Status.sending);
@@ -452,7 +444,8 @@ class PikuChatState extends State<PikuChat> {
   }
 
   void _handleMessageTap(BuildContext context, types.Message message) async {
-    if (message.status == types.Status.error && message is types.TextMessage) {
+    if (message.status == types.Status.error &&
+        message is types.CustomMessage) {
       _handleResendMessage(message);
     }
     widget.onMessageTap?.call(message);
@@ -528,21 +521,18 @@ class PikuChatState extends State<PikuChat> {
     }
   }
 
-  void _handleSendPressed(types.PartialText message) {
-    final textMessage = types.TextMessage(
-        author: _user,
-        createdAt: DateTime.now().millisecondsSinceEpoch,
-        id: const Uuid().v4(),
-        text: message.text,
-        status: types.Status.sending);
+  void _handleSendPressed(types.CustomMessage message) {
+    final textMessage = message;
 
-    _addMessage(textMessage);
+    // _addMessage(textMessage);
 
     pikuClient!.sendMessage(
-        content: textMessage.text,
+        content: textMessage.metadata?['text'],
+        attachments: results,
         echoId: textMessage.id,
         sentFromCurrentDevice: true);
     widget.onSendPressed?.call(message);
+    results = [];
   }
 
   @override
@@ -563,7 +553,17 @@ class PikuChatState extends State<PikuChat> {
                 customMessageBuilder: customMessageBuilder,
                 onMessageTap: _handleMessageTap,
                 onPreviewDataFetched: _handlePreviewDataFetched,
-                onSendPressed: _handleSendPressed,
+                onSendPressed: (message) {
+                  _handleSendPressed(types.CustomMessage(
+                      author: _user,
+                      createdAt: DateTime.now().millisecondsSinceEpoch,
+                      id: const Uuid().v4(),
+                      metadata: {
+                        'text': message.text,
+                        'attachments': results,
+                      },
+                      status: types.Status.sending));
+                },
                 onAttachmentPressed: () {
                   _handleImageSelection(context);
                 },
