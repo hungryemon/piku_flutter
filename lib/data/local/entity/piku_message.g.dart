@@ -24,7 +24,7 @@ class PikuMessageAdapter extends TypeAdapter<PikuMessage> {
       contentAttributes: fields[4] as dynamic,
       createdAt: fields[5] as String,
       conversationId: fields[6] as int?,
-      attachments: (fields[7] as List?)?.cast<dynamic>(),
+      attachments: (fields[7] as List?)?.cast<PikuAttachment>(),
       sender: fields[8] as PikuEventMessageUser?,
     );
   }
@@ -76,7 +76,9 @@ PikuMessage _$PikuMessageFromJson(Map<String, dynamic> json) => PikuMessage(
       contentAttributes: json['content_attributes'],
       createdAt: createdAtFromJson(json['created_at']),
       conversationId: idFromJson(json['conversation_id']),
-      attachments: json['attachments'] as List<dynamic>?,
+      attachments: (json['attachments'] as List<dynamic>?)
+          ?.map((e) => PikuAttachment.fromJson(e as Map<String, dynamic>))
+          .toList(),
       sender: json['sender'] == null
           ? null
           : PikuEventMessageUser.fromJson(
@@ -92,6 +94,6 @@ Map<String, dynamic> _$PikuMessageToJson(PikuMessage instance) =>
       'content_attributes': instance.contentAttributes,
       'created_at': instance.createdAt,
       'conversation_id': instance.conversationId,
-      'attachments': instance.attachments,
+      'attachments': instance.attachments?.map((e) => e.toJson()).toList(),
       'sender': instance.sender?.toJson(),
     };

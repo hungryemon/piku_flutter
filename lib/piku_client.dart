@@ -53,9 +53,9 @@ class PikuClient {
   /// [PikuMessage] will be returned with the [echoId] on [PikuCallbacks.onMessageSent]. If
   /// message fails to send [PikuCallbacks.onError] will be triggered [echoId] as data.
   Future<void> sendMessage(
-      {required String content, required String echoId}) async {
+      {required String content, required String echoId, required bool sentFromCurrentDevice}) async {
     final request = PikuNewMessageRequest(content: content, echoId: echoId);
-    await _repository.sendMessage(request);
+    await _repository.sendMessage(request, sentFromCurrentDevice,);
   }
 
   ///Send Piku action performed by user.

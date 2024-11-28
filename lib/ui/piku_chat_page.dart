@@ -1,7 +1,12 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
 import 'package:flutter_chat_ui/flutter_chat_ui.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:markdown_widget/widget/all.dart';
+import 'package:piku_flutter/data/local/entity/piku_attachment.dart';
+import 'package:piku_flutter/helpers/utils.dart';
 import 'package:uuid/uuid.dart';
 
 import '../piku_callbacks.dart';
@@ -204,7 +209,7 @@ class PikuChatState extends State<PikuChat> {
         if (widget.enablePersistence) {
           setState(() {
             _messages = persistedMessages
-                .map((message) => _pikuMessageToTextMessage(message))
+                .map((message) => _pikuMessageToCustomMessage(message))
                 .toList();
           });
         }
@@ -216,7 +221,7 @@ class PikuChatState extends State<PikuChat> {
         }
         setState(() {
           final chatMessages = messages
-              .map((message) => _pikuMessageToTextMessage(message))
+              .map((message) => _pikuMessageToCustomMessage(message))
               .toList();
           final mergedMessages =
               <types.Message>{..._messages, ...chatMessages}.toList();
@@ -229,21 +234,26 @@ class PikuChatState extends State<PikuChat> {
         widget.onMessagesRetrieved?.call(messages);
       },
       onMessageReceived: (pikuMessage) {
-        _addMessage(_pikuMessageToTextMessage(pikuMessage));
+        _addMessage(_pikuMessageToCustomMessage(
+          pikuMessage,
+        ));
+
         widget.onMessageReceived?.call(pikuMessage);
       },
       onMessageDelivered: (pikuMessage, echoId) {
         _handleMessageSent(
-            _pikuMessageToTextMessage(pikuMessage, echoId: echoId));
+            _pikuMessageToCustomMessage(pikuMessage, echoId: echoId));
         widget.onMessageDelivered?.call(pikuMessage);
       },
-      onMessageUpdated: (pikuMessage) {
-        print("PIKU MSG LENGTH: ${pikuMessage.toJson()}");
-        _handleMessageUpdated(_pikuMessageToTextMessage(pikuMessage,
-            echoId: pikuMessage.id.toString()));
+      onMessageUpdated: (pikuMessage, isFromCurrentDevice) {
+        _handleMessageUpdated(
+            _pikuMessageToCustomMessage(
+              pikuMessage,
+            ),
+            isFromCurrentDevice);
         widget.onMessageUpdated?.call(pikuMessage);
       },
-      onMessageSent: (pikuMessage, echoId) {
+      onMessageSent: (pikuMessage, echoId, sentFromCurrentDevice) {
         final textMessage = types.TextMessage(
             id: echoId,
             author: _user,
@@ -268,7 +278,7 @@ class PikuChatState extends State<PikuChat> {
         if (error.type == PikuClientExceptionType.SEND_MESSAGE_FAILED) {
           _handleSendMessageFailed(error.data);
         }
-        print("Ooops! Something went wrong. Error Cause: ${error.cause}");
+        debugPrint("Ooops! Something went wrong. Error Cause: ${error.cause}");
         widget.onError?.call(error);
       },
     );
@@ -289,11 +299,11 @@ class PikuChatState extends State<PikuChat> {
     }).onError((error, stackTrace) {
       widget.onError?.call(PikuClientException(
           error.toString(), PikuClientExceptionType.CREATE_CLIENT_FAILED));
-      print("piku client failed with error $error: $stackTrace");
+      debugPrint("piku client failed with error $error: $stackTrace");
     });
   }
 
-  types.TextMessage _pikuMessageToTextMessage(PikuMessage message,
+  types.CustomMessage _pikuMessageToCustomMessage(PikuMessage message,
       {String? echoId}) {
     String? avatarUrl = message.sender?.avatarUrl ?? message.sender?.thumbnail;
 
@@ -302,7 +312,7 @@ class PikuChatState extends State<PikuChat> {
     if (avatarUrl?.contains("?d=404") ?? false) {
       avatarUrl = null;
     }
-    return types.TextMessage(
+    return types.CustomMessage(
         id: echoId ?? message.id.toString(),
         author: message.isMine
             ? _user
@@ -311,15 +321,118 @@ class PikuChatState extends State<PikuChat> {
                 firstName: message.sender?.name,
                 imageUrl: avatarUrl,
               ),
-        text: message.content ?? "",
+        metadata: {
+          'text': message.content ?? "",
+          'attachments': message.attachments == null
+              ? []
+              : List<dynamic>.from(message.attachments!.map((x) => x.toJson())),
+        },
         status: types.Status.seen,
         createdAt: DateTime.parse(message.createdAt).millisecondsSinceEpoch);
   }
 
+  Widget customMessageBuilder(types.CustomMessage message,
+      {required int messageWidth}) {
+    final metadata = message.metadata ?? {};
+    final text = metadata['text'] as String?;
+    final List<PikuAttachment> attachments = metadata["attachments"] == null
+        ? []
+        : List<PikuAttachment>.from(
+            metadata["attachments"]!.map((x) => PikuAttachment.fromJson(x)));
+
+    List<Widget> imageChildren = List.generate(attachments.length, (index) {
+      return attachments[index].dataUrl == null
+          ? Container()
+          : ConstrainedBox(
+              constraints: BoxConstraints(
+                  maxWidth: messageWidth.toDouble(), maxHeight: 240),
+              child: CachedNetworkImage(
+                imageUrl: attachments[index].dataUrl!,
+                placeholder: (context, url) => const SizedBox(
+                  height: 24,
+                  width: 24,
+                ),
+              ),
+            );
+    });
+
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (attachments.isNotEmpty)
+            Wrap(
+              spacing: 4,
+              runSpacing: 4,
+              children: imageChildren,
+            ),
+          if (attachments.isNotEmpty && text != null && text.isNotEmpty)
+            const SizedBox(height: 8),
+          if (text != null && text.isNotEmpty) ...[
+            containsMarkdownCharacters(text)
+                ? MarkdownWidget(
+                    data: text,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                  )
+                : Text(
+                    text,
+                    softWrap: true,
+                  ),
+          ],
+        ],
+      ),
+    );
+  }
+
   void _addMessage(types.Message message) {
     setState(() {
-      _messages.insert(0, message);
+      if ((message.metadata?['text'] != null &&
+              message.metadata?['text'] != '') ||
+          message.metadata?['attachments'] != null &&
+              message.metadata?['attachments'] != []) {
+        _messages.insert(0, message);
+      }
     });
+  }
+
+  _handleImageSelection(context, {String? echoId}) async {
+    final result = await ImagePicker().pickImage(
+      imageQuality: 70,
+      maxWidth: 1440,
+      source: ImageSource.gallery,
+    );
+
+    if (result != null) {
+      // Check if the file extension is SVG
+      if (result.name.toLowerCase().endsWith('.svg')) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            backgroundColor: Colors.redAccent,
+            duration: Duration(seconds: 2),
+            content: Text(
+              "SVG files not supported!",
+              style: TextStyle(color: Colors.white),
+            )));
+        return;
+      }
+
+      final bytes = await result.readAsBytes();
+      final image = await decodeImageFromList(bytes);
+
+      final imgMessage = types.ImageMessage(
+        author: _user,
+        createdAt: DateTime.now().millisecondsSinceEpoch,
+        height: image.height.toDouble(),
+        id: const Uuid().v4(),
+        name: result.name,
+        size: bytes.length,
+        uri: result.path,
+        width: image.width.toDouble(),
+      );
+
+      _addMessage(imgMessage);
+    }
   }
 
   void _handleSendMessageFailed(String echoId) async {
@@ -330,7 +443,8 @@ class PikuChatState extends State<PikuChat> {
   }
 
   void _handleResendMessage(types.TextMessage message) async {
-    pikuClient!.sendMessage(content: message.text, echoId: message.id);
+    pikuClient!.sendMessage(
+        content: message.text, echoId: message.id, sentFromCurrentDevice: true);
     final index = _messages.indexWhere((element) => element.id == message.id);
     setState(() {
       _messages[index] = message.copyWith(status: types.Status.sending);
@@ -364,6 +478,7 @@ class PikuChatState extends State<PikuChat> {
     types.Message message,
   ) {
     final index = _messages.indexWhere((element) => element.id == message.id);
+
     if (index >= 0) {
       if (_messages[index].status == types.Status.seen) {
         return;
@@ -373,7 +488,12 @@ class PikuChatState extends State<PikuChat> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       setState(() {
         if (index >= 0) {
-          _messages[index] = message;
+          if ((message.metadata?['text'] != null &&
+                  message.metadata?['text'] != '') ||
+              (message.metadata?['attachments'] != null &&
+                  message.metadata?['attachments'] != [])) {
+            _messages[index] = message;
+          }
         }
       });
     });
@@ -381,16 +501,31 @@ class PikuChatState extends State<PikuChat> {
 
   void _handleMessageUpdated(
     types.Message message,
+    bool isFromCurrentDevice,
   ) {
     final index = _messages.indexWhere((element) => element.id == message.id);
-    print("MESSAGE UPDATED ${_messages.length}");
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      setState(() {
-        if (index < _messages.length && index >= 0) {
-          _messages[index] = message;
-        }
+    if (index == -1 && !isFromCurrentDevice) {
+      if ((message.metadata?['text'] != null &&
+              message.metadata?['text'] != '') ||
+          (message.metadata?['attachments'] != null &&
+              message.metadata?['attachments'] != [])) {
+        _addMessage(message);
+        _handleMessageUpdated(message, isFromCurrentDevice);
+      }
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        setState(() {
+          if ((message.metadata?['text'] != null &&
+                  message.metadata?['text'] != '') ||
+              (message.metadata?['attachments'] != null &&
+                  message.metadata?['attachments'] != [])) {
+            if (index >= 0) {
+              _messages[index] = message;
+            }
+          }
+        });
       });
-    });
+    }
   }
 
   void _handleSendPressed(types.PartialText message) {
@@ -403,7 +538,10 @@ class PikuChatState extends State<PikuChat> {
 
     _addMessage(textMessage);
 
-    pikuClient!.sendMessage(content: textMessage.text, echoId: textMessage.id);
+    pikuClient!.sendMessage(
+        content: textMessage.text,
+        echoId: textMessage.id,
+        sentFromCurrentDevice: true);
     widget.onSendPressed?.call(message);
   }
 
@@ -422,9 +560,13 @@ class PikuChatState extends State<PikuChat> {
                   left: horizontalPadding, right: horizontalPadding),
               child: Chat(
                 messages: _messages,
+                customMessageBuilder: customMessageBuilder,
                 onMessageTap: _handleMessageTap,
                 onPreviewDataFetched: _handlePreviewDataFetched,
                 onSendPressed: _handleSendPressed,
+                onAttachmentPressed: () {
+                  _handleImageSelection(context);
+                },
                 user: _user,
                 onEndReached: widget.onEndReached,
                 onEndReachedThreshold: widget.onEndReachedThreshold,

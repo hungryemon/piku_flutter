@@ -45,9 +45,9 @@ class PikuCallbacks {
   ///Triggered when a message created event/message [PikuEventMessageType.message_updated]
   ///is received after connecting to the piku websocket.
   ///See [PikuRepository.listenForEvents]
-  void Function(PikuMessage)? onMessageUpdated;
+  void Function(PikuMessage, bool)? onMessageUpdated;
 
-  void Function(PikuMessage, String)? onMessageSent;
+  void Function(PikuMessage, String, bool)? onMessageSent;
 
   ///Triggered when a message created event/message [PikuEventMessageType.message_created]
   ///is received and message belongs to current user after connecting to the piku websocket.

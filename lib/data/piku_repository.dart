@@ -39,7 +39,8 @@ abstract class PikuRepository {
 
   void listenForEvents();
 
-  Future<void> sendMessage(PikuNewMessageRequest request);
+  Future<void> sendMessage(
+      PikuNewMessageRequest request, bool sentFromCurrentDevice);
 
   void sendAction(PikuActionType action);
 
@@ -50,6 +51,7 @@ abstract class PikuRepository {
 
 class PikuRepositoryImpl extends PikuRepository {
   bool _isListeningForEvents = false;
+  bool _sentFromCurrentDevice = false;
   Timer? _publishPresenceTimer;
   Timer? _presenceResetTimer;
 
@@ -118,11 +120,14 @@ class PikuRepositoryImpl extends PikuRepository {
 
   ///Sends message to piku inbox
   @override
-  Future<void> sendMessage(PikuNewMessageRequest request) async {
+  Future<void> sendMessage(
+      PikuNewMessageRequest request, bool sentFromCurrentDevice) async {
     try {
+      _sentFromCurrentDevice = sentFromCurrentDevice;
       final createdMessage = await clientService.createMessage(request);
       await localStorage.messagesDao.saveMessage(createdMessage);
-      callbacks.onMessageSent?.call(createdMessage, request.echoId);
+      callbacks.onMessageSent
+          ?.call(createdMessage, request.echoId, _sentFromCurrentDevice);
       if (clientService.connection != null && !_isListeningForEvents) {
         listenForEvents();
       }
@@ -158,7 +163,7 @@ class PikuRepositoryImpl extends PikuRepository {
         callbacks.onConfirmedSubscription?.call();
       } else if (pikuEvent.message?.event ==
           PikuEventMessageType.message_created) {
-        print("here comes message: $event");
+        print("here comes message: $event,");
         final PikuMessage message = pikuEvent.message!.data!.getMessage();
         localStorage.messagesDao.saveMessage(message);
         if (message.isMine) {
@@ -173,12 +178,13 @@ class PikuRepositoryImpl extends PikuRepository {
 
         final PikuMessage message = pikuEvent.message!.data!.getMessage();
         localStorage.messagesDao.saveMessage(message);
-        if (message.isMine) {
-          callbacks.onMessageDelivered
-              ?.call(message, pikuEvent.message?.data?.echoId ?? '');
-        } else {
-          callbacks.onMessageUpdated?.call(message);
-        }
+        // if (message.isMine) {
+        //   callbacks.onMessageDelivered
+        //       ?.call(message, pikuEvent.message?.data?.echoId ??  '');
+        // } else {
+        callbacks.onMessageUpdated?.call(message, _sentFromCurrentDevice);
+        _sentFromCurrentDevice = false;
+        // }
       } else if (pikuEvent.message?.event ==
           PikuEventMessageType.conversation_typing_off) {
         callbacks.onConversationStoppedTyping?.call();

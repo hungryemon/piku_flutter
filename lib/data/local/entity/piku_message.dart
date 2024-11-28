@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:hive/hive.dart';
 import 'package:json_annotation/json_annotation.dart';
+import 'package:piku_flutter/data/local/entity/piku_attachment.dart';
 
 import '../../remote/responses/piku_event.dart';
 import '../local_storage.dart';
@@ -50,7 +51,7 @@ class PikuMessage extends Equatable {
   ///list of media/doc/file attachment for message
   @JsonKey()
   @HiveField(7)
-  final List<dynamic>? attachments;
+  final List<PikuAttachment>? attachments;
 
   ///The user this message belongs to
   @JsonKey(name: "sender")

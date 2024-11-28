@@ -49,14 +49,9 @@ class MyHomePageState extends State<MyHomePage> {
               baseUrl: YOUR_URL,
               inboxIdentifier: YOUR_INBOX_IDENTIFIER,
               title: "Piku",
-              contactIdentifier: "eeeb729f-32e4-4f58-8b59-17bde00c1933",
-              conversationId: 168,
-              enablePersistence: true,
-              user: const PikuUser(
-                identifier: "hungryemon",
-                name: "Tester test",
-                email: "test@test.com",
-              ));
+              contactIdentifier: "b6c78535-eebd-41b7-a4c8-f11d0155dc2e",
+              conversationId: 186,
+              enablePersistence: true,);
         }),
         body: Container());
   }

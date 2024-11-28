@@ -25,12 +25,12 @@ class PikuContact extends Equatable {
   final String? pubsubToken;
 
   ///Full name of contact
-  @JsonKey()
+  @JsonKey(name: "name")
   @HiveField(3)
   final String? name;
 
   ///Email of contact
-  @JsonKey()
+  @JsonKey(name: "email")
   @HiveField(4)
   final String? email;
 

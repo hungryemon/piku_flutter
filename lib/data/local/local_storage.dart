@@ -5,16 +5,20 @@ import 'dao/piku_contact_dao.dart';
 import 'dao/piku_conversation_dao.dart';
 import 'dao/piku_messages_dao.dart';
 import 'dao/piku_user_dao.dart';
+import 'entity/piku_attachment.dart';
 import 'entity/piku_contact.dart';
 import 'entity/piku_conversation.dart';
 import 'entity/piku_message.dart';
 import 'entity/piku_user.dart';
+
 
 const PIKU_CONTACT_HIVE_TYPE_ID = 0;
 const PIKU_CONVERSATION_HIVE_TYPE_ID = 1;
 const PIKU_MESSAGE_HIVE_TYPE_ID = 2;
 const PIKU_USER_HIVE_TYPE_ID = 3;
 const PIKU_EVENT_USER_HIVE_TYPE_ID = 4;
+const PIKU_ATTACHMENT_HIVE_TYPE_ID = 5;
+
 
 class LocalStorage {
   PikuUserDao userDao;
@@ -32,6 +36,9 @@ class LocalStorage {
   static Future<void> openDB({void Function()? onInitializeHive}) async {
     if (onInitializeHive == null) {
       await Hive.initFlutter();
+      if (!Hive.isAdapterRegistered(PIKU_ATTACHMENT_HIVE_TYPE_ID)) {
+        Hive.registerAdapter(PikuAttachmentAdapter());
+      }
       if (!Hive.isAdapterRegistered(PIKU_CONTACT_HIVE_TYPE_ID)) {
         Hive.registerAdapter(PikuContactAdapter());
       }

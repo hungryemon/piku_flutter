@@ -25,6 +25,9 @@ dependencies:
   stream_channel: ^2.1.2
   async: ^2.11.0
   path_provider: ^2.1.4
+  image_picker: ^1.1.2
+  markdown_widget: ^2.3.2+6
+  cached_network_image: ^3.4.1
 
 dev_dependencies:
   flutter_test:
